@@ -96,8 +96,20 @@ void hvezda(int x, int y, int r)
 	cara(x+r,y);
 }
 
+int getheight(int x, int y)
+{
+	for(int i = y; i < 2000; i++)
+	{
+		if(getpixelstate(x,i)==1)
+		{
+			return(i-y);
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
+	int t1, t2;
 	Obrazovka* obrazovka = Obrazovka::instance();
 	obrazovka->inicializuj(RESX, RESY, 0, 0);
 	Rectangle ground, roof, leftwall, rightwall;
@@ -110,9 +122,11 @@ int main(int argc, char** argv)
 	player.h = 30;
 	player.x = RESX/2 - player.w/2;
 	player.y = RESY/2 - player.h/2;
+	player.vy = 0.5;
 
 	while(1)
 	{
+		t1 = SDL_GetTicks();
 		SDL_FillRect(obrazovka->screen, NULL, 0);
 
 
@@ -120,6 +134,16 @@ int main(int argc, char** argv)
 		barva(255,255,255);
 		rectangle(ground);
 		rectangle(player);
+
+		if(getheight(player.x,player.y)>0)
+		{
+			ground.y -= player.vy;
+		}
+		else
+		{
+			player.vy = 0;
+		}
+		player.vy += 0.5;
 
 		obrazovka->aktualizuj();
 
@@ -140,6 +164,11 @@ int main(int argc, char** argv)
 				SDL_Quit();
 				return 0;
 			}
+		}
+		t2 = SDL_GetTicks();
+		if(t2-t1<=17)
+		{
+			SDL_Delay(17-(t2-t1));
 		}
 	}
 }
