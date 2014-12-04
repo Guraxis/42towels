@@ -6,6 +6,11 @@
 
 #include "obrazek.h"
 
+#define RESX 800
+#define RESY 600
+
+bool pixelstate[RESX][RESY];
+
 float nahoda(float min, float max)
 {
 	return (float)rand()/RAND_MAX*(max-min)+min;
@@ -19,6 +24,12 @@ void kruznice(int x, int y, int r)
 	}
 }
 
+class Rectangle
+{
+public:
+	float x, y, w, h, vx, vy;
+};
+
 class Kruznice
 {
 public:
@@ -31,44 +42,84 @@ public:
 	float x, y, vx, vy;
 };
 
+void setpixelstate(int x,int y)
+{
+	pixelstate[x][y] == 1;
+}
+
+bool getpixelstate(int x,int y)
+{
+	return pixelstate[x][y];
+}
+
+void rectangle(Rectangle a)
+{
+	for(int i=0; i<a.h; i++)
+	{
+		cara(a.x,a.y+i,a.x+a.w,a.y+i);
+		for(int j=0; j<a.w; j++)
+		{
+			setpixelstate(j,i);
+		}
+	}
+}
+
+void hrectangle(Rectangle a)
+{
+	cara(a.x,a.y,a.x+a.w,a.y);
+	cara(a.x+a.w,a.y+a.h);
+	cara(a.x,a.y+a.h);
+	cara(a.x,a.y);
+}
+
+void triangle(int x, int y, int w, int h)
+{
+	cara(x,y,x+w,y);
+	cara(x+w/2,y-h);
+	cara(x,y);
+}
+
+void triangle(int x1, int y1, int x2, int y2, int x3, int y3)
+{
+	cara(x1,y1,x2,y2);
+	cara(x3,y3);
+	cara(x1,y1);
+}
+
+void hvezda(int x, int y, int r)
+{
+	bod(x+r,y);
+	for(float alfa=0;alfa<10*M_PI;alfa+=2*M_PI/12*5)
+	{
+		cara(x+cos(alfa)*r,y+sin(alfa)*r);
+	}
+	cara(x+r,y);
+}
+
 int main(int argc, char** argv)
 {
-	int stage=1;
-	int r=255, g=0, b=0;
-	int timer=0;
-	int t1, t2;
 	Obrazovka* obrazovka = Obrazovka::instance();
-	obrazovka->inicializuj(800, 600, 0, 0);
-
-	Kruznice k;
-	k.x = 500;
-	k.y = 400;
-	k.r = 30;
-	k.vx = 0;
-	k.vy = 0;
-
+	obrazovka->inicializuj(RESX, RESY, 0, 0);
+	Rectangle ground, roof, leftwall, rightwall;
+	ground.x = -400;
+	ground.y = RESY-20;
+	ground.h = 300;
+	ground.w = 1800;
+	Rectangle player;
+	player.w = 20;
+	player.h = 30;
+	player.x = RESX/2 - player.w/2;
+	player.y = RESY/2 - player.h/2;
 
 	while(1)
 	{
-		t1 = SDL_GetTicks();
 		SDL_FillRect(obrazovka->screen, NULL, 0);
 
-		if(stage==1){r--;g++;}
-		if(stage==2){g--;b++;}
-		if(stage==3){b--;r++;}
 
-		if(b==0&&r==255){stage=1;}
-		if(r==0&&g==255){stage=2;}
-		if(g==0&&b==255){stage=3;}
 
-		barva(255,0,0);
-		kruznice(k.x, k.y, k.r);
-		bod(k.x,k.y);
 		barva(255,255,255);
-		cara(20,20,780,20);
-		cara(780,580);
-		cara(20,580);
-		cara(20,20);
+		rectangle(ground);
+		rectangle(player);
 
 		obrazovka->aktualizuj();
 
@@ -88,37 +139,7 @@ int main(int argc, char** argv)
 			case SDL_QUIT:
 				SDL_Quit();
 				return 0;
-			case SDL_MOUSEBUTTONDOWN:
-				k.vx += ( event.button.x - k.x ) / 50;
-				k.vy += ( event.button.y - k.y ) / 50;
-				break;
 			}
-		}
-
-		if(k.x<50){k.vx = -k.vx/4*3; k.x=50;}
-		if(k.x>750){k.vx = -k.vx/4*3; k.x=750;}
-		if(k.y<50){k.vy = -k.vy/4*3; k.y=50;}
-
-		if(k.vx>0){k.vx -= 0.01;}
-		if(k.vx<0){k.vx += 0.01;}
-		if(k.y==0&&k.vx>0){k.vx -= 0.05;}
-		if(k.y==0&&k.vx<0){k.vx += 0.05;}
-		if(k.vx<0.001&&k.vx>0||k.vx>-0.001&&k.vx<0){k.vx=0;}
-
-		if(k.y<550){k.vy+=0.2;}
-		if(k.y>550){k.y = 550; k.vy = -k.vy/4*3;}
-
-		if(k.y>548&&k.vy>0||k.y>545&&k.vy<0){timer++;}
-		if(k.y<=548){timer=0;}
-		if(timer==10){timer=0; k.vy=0; k.y=550;}
-
-		k.x+=k.vx;
-		k.y+=k.vy;
-
-		t2 = SDL_GetTicks();
-		if(t2-t1<=17)
-		{
-			SDL_Delay(17-(t2-t1));
 		}
 	}
 }
