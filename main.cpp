@@ -11,6 +11,17 @@
 
 bool pixelstate[RESX][RESY];
 
+void resetpixelstate()
+{
+	for(int i=0;i<RESX;i++)
+	{
+		for(int j=0;j<RESY;j++)
+		{
+			pixelstate[i][j] = 0;
+		}
+	}
+}
+
 float nahoda(float min, float max)
 {
 	return (float)rand()/RAND_MAX*(max-min)+min;
@@ -53,6 +64,14 @@ bool getpixelstate(int x,int y)
 }
 
 void rectangle(Rectangle a)
+{
+	for(int i=0; i<a.h; i++)
+	{
+		cara(a.x,a.y+i,a.x+a.w,a.y+i);
+	}
+}
+
+void crectangle(Rectangle a)
 {
 	for(int i=0; i<a.h; i++)
 	{
@@ -128,11 +147,12 @@ int main(int argc, char** argv)
 	{
 		t1 = SDL_GetTicks();
 		SDL_FillRect(obrazovka->screen, NULL, 0);
+		resetpixelstate();
 
 
 
 		barva(255,255,255);
-		rectangle(ground);
+		crectangle(ground);
 		rectangle(player);
 
 		if(getheight(player.x,player.y)>0)
@@ -141,9 +161,9 @@ int main(int argc, char** argv)
 		}
 		else
 		{
-			player.vy = 0;
+			//player.vy = 0;
 		}
-		player.vy += 0.5;
+		player.vy += 0.1;
 
 		obrazovka->aktualizuj();
 
