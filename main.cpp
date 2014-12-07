@@ -162,12 +162,15 @@ int main(int argc, char** argv)
 	gettimeofday(&tv, NULL);
 	srand(tv.tv_usec);
 	int spawnx, spawny;
+	int spawnlimit = 35;
+	int spawncount = 0;
 	int t1, t2;
 	int mousex, mousey;
 	int shoot = 0;
 	int delay = 20;
 	int rate = 20;
 	int spawndelay = 0;
+	int tempangle = 0;
 
 	Obrazovka* obrazovka = Obrazovka::instance();
 	obrazovka->inicializuj(RESX, RESY, 0, 0);
@@ -201,6 +204,7 @@ int main(int argc, char** argv)
 
 	std::list<Character> enemies;
 	std::list<Character>::iterator e;
+	std::list<Character>::iterator e1;
 
 	std::list<Shot> shots;
 	std::list<Shot>::iterator s;
@@ -323,7 +327,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-		if(spawndelay > 50)
+		if(spawndelay > 50 && spawncount < spawnlimit)
 		{
 			while(1)
 			{
@@ -338,6 +342,7 @@ int main(int argc, char** argv)
 					enemy -> speed = 1;
 					enemies.push_back(*enemy);
 					spawndelay = 0;
+					spawncount ++;
 					break;
 				}
 			}
@@ -351,6 +356,22 @@ int main(int argc, char** argv)
 			e -> body.x += e -> body.vx;
 			e -> body.y += e -> body.vy;
 			kruznice(e -> body.x, e -> body.y, e -> body.r);
+
+			for(e1 = enemies.begin(); e1 != enemies.end(); e1++)
+			{
+				if(e -> body.x == e1 -> body.x && e -> body.y == e1 -> body.y){}
+				else
+				{
+					if((abs(e -> body.x - e1 -> body.x)) * (abs(e -> body.x - e1 -> body.x))
+							+ (abs(e -> body.y - e1 -> body.y)) * (abs(e -> body.y - e1 -> body.y))
+							< (e -> body.r + e1 -> body.r) * (e -> body.r + e1 -> body.r))
+					{
+						tempangle = atan2(e -> body.y - e1 -> body.y, e -> body.x - e1 -> body.x);
+						e -> body.x += cos(tempangle) * e -> speed ;
+						e -> body.y += sin(tempangle) * e -> speed ;
+					}
+				}
+			}
 
 			for(s = shots.begin(); s != shots.end(); s++)
 			{
@@ -371,6 +392,7 @@ int main(int argc, char** argv)
 				e++;
 				enemies.erase(e2);
 				e--;
+				spawncount--;
 			}
 		}
 
