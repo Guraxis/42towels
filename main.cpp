@@ -51,23 +51,33 @@ public:
 	float angle;
 	float speed;
 	float health;
-	bool moveup, movedown, moveleft, moveright;
-	Character() {angle = 0; moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 2.5; health = 2;}
+	Character() {angle = 0;}
+};
+
+class Enemy : public Character
+{
+public:
+	int tempangle;
+	Enemy() {tempangle = 0; health = 3; speed = 2.5;}
+
 };
 
 class Player : public Character
 {
 public:
 	Cara hands;
-	Player() {}
-	virtual ~Player() {}
+	bool moveup, movedown, moveleft, moveright;
+	Player() {moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 3;}
 };
 
 class Shot : public Cara
 {
 public:
 	float speed;
-	Shot() {speed = 3.5;}
+	bool stuck;
+	float damage;
+	std::list<Enemy>::iterator stick;
+	Shot() {speed = 3.5; stuck = 0; damage = 1;}
 };
 
 void kruznice(int x, int y, int r)
@@ -170,7 +180,6 @@ int main(int argc, char** argv)
 	int delay = 20;
 	int rate = 20;
 	int spawndelay = 0;
-	int tempangle = 0;
 
 	Obrazovka* obrazovka = Obrazovka::instance();
 	obrazovka->inicializuj(RESX, RESY, 0, 0);
@@ -202,9 +211,9 @@ int main(int argc, char** argv)
 	player.hands.x2 = player.body.x+25;
 	player.hands.y2 = player.body.y;
 
-	std::list<Character> enemies;
-	std::list<Character>::iterator e;
-	std::list<Character>::iterator e1;
+	std::list<Enemy> enemies;
+	std::list<Enemy>::iterator e;
+	std::list<Enemy>::iterator e1;
 
 	std::list<Shot> shots;
 	std::list<Shot>::iterator s;
@@ -312,10 +321,27 @@ int main(int argc, char** argv)
 
 		for(s = shots.begin(); s != shots.end(); s++)
 		{
-			s -> x1 += s -> vx1;
-			s -> y1 += s -> vy1;
-			s -> x2 += s -> vx2;
-			s -> y2 += s -> vy2;
+			for(e = enemies.begin(); e != enemies.end(); e++)
+			{
+				if(s -> stick == e)
+				{
+					s -> x1 += e -> body.vx;
+					s -> y1 += e -> body.vy;
+					s -> x2 += e -> body.vx;
+					s -> y2 += e -> body.vy;
+					s -> stuck = 1;
+					break;
+				}
+			}
+
+			if(s -> stuck == 0)
+			{
+				s -> x1 += s -> vx1;
+				s -> y1 += s -> vy1;
+				s -> x2 += s -> vx2;
+				s -> y2 += s -> vy2;
+			}
+
 			cara(s -> x1, s -> y1, s -> x2, s -> y2);
 
 			if(wallcollide(s -> x2, s -> y2, roof, ground, leftwall, rightwall))
@@ -335,7 +361,7 @@ int main(int argc, char** argv)
 				spawny = nahoda(roof.h + 15, ground.y - 15);
 				if((abs(player.body.x - spawnx)*abs(player.body.x - spawnx)) + (abs(player.body.y - spawny)*abs(player.body.y - spawny)) > 300*300)
 				{
-					Character* enemy = new Character();
+					Enemy* enemy = new Enemy();
 					enemy -> body.x = spawnx;
 					enemy -> body.y = spawny;
 					enemy -> body.r = 15;
@@ -359,16 +385,25 @@ int main(int argc, char** argv)
 
 			for(e1 = enemies.begin(); e1 != enemies.end(); e1++)
 			{
-				if(e -> body.x == e1 -> body.x && e -> body.y == e1 -> body.y){}
-				else
 				{
 					if((abs(e -> body.x - e1 -> body.x)) * (abs(e -> body.x - e1 -> body.x))
 							+ (abs(e -> body.y - e1 -> body.y)) * (abs(e -> body.y - e1 -> body.y))
-							< (e -> body.r + e1 -> body.r) * (e -> body.r + e1 -> body.r))
+							< (e -> body.r + e1 -> body.r) * (e -> body.r + e1 -> body.r)
+							&& e -> body.x != e1 -> body.x && e -> body.y != e1 -> body.y)
 					{
-						tempangle = atan2(e -> body.y - e1 -> body.y, e -> body.x - e1 -> body.x);
-						e -> body.x += cos(tempangle) * e -> speed ;
-						e -> body.y += sin(tempangle) * e -> speed ;
+						e -> tempangle = atan2(e -> body.y - e1 -> body.y, e -> body.x - e1 -> body.x);
+						e -> body.x += cos(e -> tempangle) * e -> speed ;
+						e -> body.y += sin(e -> tempangle) * e -> speed ;
+						for(s = shots.begin(); s != shots.end(); s++)
+						{
+							if(s -> stick == e)
+							{
+								s -> x1 += cos(e -> tempangle) * e -> speed;
+								s -> y1 += sin(e -> tempangle) * e -> speed;
+								s -> x2 += cos(e -> tempangle) * e -> speed;
+								s -> y2 += sin(e -> tempangle) * e -> speed;
+							}
+						}
 					}
 				}
 			}
@@ -377,22 +412,30 @@ int main(int argc, char** argv)
 			{
 				if(enemycollide(s -> x2, s -> y2, e -> body.x, e -> body.y, e -> body.r))
 				{
-					std::list<Shot>::iterator s2 = s;
-					s++;
-					shots.erase(s2);
-					s--;
-
-					e -> health--;
+					s -> stick = e;
+					e -> health -= s -> damage;
+					s -> damage = 0;
 				}
 			}
 
-			if(e -> health == 0)
+			if(e -> health <= 0)
 			{
-				std::list<Character>::iterator e2 = e;
+				for(s = shots.begin(); s != shots.end(); s++)
+				{
+					if(s -> stick == e)
+					{
+						std::list<Shot>::iterator s2 = s;
+						s++;
+						shots.erase(s2);
+						s--;
+					}
+				}
+				std::list<Enemy>::iterator e2 = e;
 				e++;
 				enemies.erase(e2);
 				e--;
 				spawncount--;
+
 			}
 		}
 
