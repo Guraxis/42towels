@@ -57,7 +57,7 @@ public:
 class Enemy : public Character
 {
 public:
-	int tempangle;
+	double tempangle;
 	Enemy() {tempangle = 0; health = 3; speed = 2.5;}
 
 };
@@ -142,9 +142,9 @@ void drawplayer(Player p)
 	cara(p.body.x, p.body.y, p.hands.x2, p.hands.y2);
 }
 
-int wallcollide(int x, int y, Rectangle roof, Rectangle ground, Rectangle left, Rectangle right)
+int wallcollide(int x, int y, int r, Rectangle roof, Rectangle ground, Rectangle left, Rectangle right)
 {
-	if(y < roof.h || y > ground.y || x < left.w || x > right.x)
+	if(y - r < roof.h || y + r > ground.y || x - r < left.w || x + r > right.x)
 	{
 		return 1;
 	}
@@ -180,6 +180,7 @@ int main(int argc, char** argv)
 	int delay = 20;
 	int rate = 20;
 	int spawndelay = 0;
+	bool nolimit = 0;
 
 	Obrazovka* obrazovka = Obrazovka::instance();
 	obrazovka->inicializuj(RESX, RESY, 0, 0);
@@ -250,6 +251,15 @@ int main(int argc, char** argv)
 				case SDLK_d:
 					player.moveright = 1;
 					break;
+				case SDLK_e:
+					rate--;
+					break;
+				case SDLK_q:
+					rate++;
+					break;
+				case SDLK_SPACE:
+					nolimit = 1;
+					break;
 				}
 				break;
 			case SDL_KEYUP:
@@ -266,6 +276,9 @@ int main(int argc, char** argv)
 					break;
 				case SDLK_d:
 					player.moveright = 0;
+					break;
+				case SDLK_SPACE:
+					nolimit = 0;
 					break;
 				}
 				break;
@@ -284,6 +297,7 @@ int main(int argc, char** argv)
 				return 0;
 			}
 		}
+
 
 		player.angle = atan2(mousey - player.body.y , mousex - player.body.x);
 
@@ -347,7 +361,7 @@ int main(int argc, char** argv)
 
 			cara(s -> x1, s -> y1, s -> x2, s -> y2);
 
-			if(wallcollide(s -> x2, s -> y2, roof, ground, leftwall, rightwall))
+			if(wallcollide(s -> x2, s -> y2, 0, roof, ground, leftwall, rightwall))
 			{
 				std::list<Shot>::iterator s2 = s;
 				s++;
@@ -382,10 +396,6 @@ int main(int argc, char** argv)
 			e -> angle = atan2(player.body.y - e -> body.y , player.body.x - e -> body.x);
 			e -> body.vx = cos(e -> angle) * e -> speed;
 			e -> body.vy = sin(e -> angle) * e -> speed;
-			e -> body.x += e -> body.vx;
-			e -> body.y += e -> body.vy;
-			kruznice(e -> body.x, e -> body.y, e -> body.r);
-
 			for(e1 = enemies.begin(); e1 != enemies.end(); e1++)
 			{
 				{
@@ -395,21 +405,19 @@ int main(int argc, char** argv)
 							&& e -> body.x != e1 -> body.x && e -> body.y != e1 -> body.y)
 					{
 						e -> tempangle = atan2(e -> body.y - e1 -> body.y, e -> body.x - e1 -> body.x);
-						e -> body.x += cos(e -> tempangle) * e -> speed ;
-						e -> body.y += sin(e -> tempangle) * e -> speed ;
-						for(s = shots.begin(); s != shots.end(); s++)
-						{
-							if(s -> stick == e)
-							{
-								s -> x1 += cos(e -> tempangle) * e -> speed;
-								s -> y1 += sin(e -> tempangle) * e -> speed;
-								s -> x2 += cos(e -> tempangle) * e -> speed;
-								s -> y2 += sin(e -> tempangle) * e -> speed;
-							}
-						}
+						e -> body.vx += cos(e -> tempangle) * e -> speed;
+						e -> body.vy += sin(e -> tempangle) * e -> speed;
 					}
 				}
 			}
+			if(wallcollide(e -> body.x, e -> body.y, e -> body.r, roof, ground, leftwall, rightwall))
+			{
+				e -> body.vx = 0;
+				e -> body.vy = 0;
+			}
+			e -> body.x += e -> body.vx;
+			e -> body.y += e -> body.vy;
+			kruznice(e -> body.x, e -> body.y, e -> body.r);
 
 			for(s = shots.begin(); s != shots.end(); s++)
 			{
@@ -473,7 +481,7 @@ int main(int argc, char** argv)
 		spawndelay++;
 
 		t2 = SDL_GetTicks();
-		if(t2-t1<=17)
+		if(t2-t1<=17 && nolimit == 0)
 		{
 			SDL_Delay(17-(t2-t1));
 		}
