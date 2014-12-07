@@ -218,6 +218,9 @@ int main(int argc, char** argv)
 	std::list<Shot> shots;
 	std::list<Shot>::iterator s;
 
+	std::list<Animace> deaths;
+	std::list<Animace>::iterator d;
+
 
 	while(1)
 	{
@@ -430,12 +433,30 @@ int main(int argc, char** argv)
 						s--;
 					}
 				}
+
+				Animace* death = new Animace();
+				death -> nacti("death.png", 33, 33);
+				death -> umisti(e -> body.x - 17, e -> body.y - 17);
+				deaths.push_back(*death);
+
 				std::list<Enemy>::iterator e2 = e;
 				e++;
 				enemies.erase(e2);
 				e--;
 				spawncount--;
+			}
+		}
 
+		for(d = deaths.begin(); d != deaths.end(); d++)
+		{
+			d -> kresli();
+			d -> aktualizuj();
+			if(d -> frame == 0)
+			{
+				std::list<Animace>::iterator d2 = d;
+				d++;
+				deaths.erase(d2);
+				d--;
 			}
 		}
 
