@@ -44,15 +44,22 @@ public:
 	Cara() {vx1 = 0; vy1 = 0; vx2 = 0; vy2 = 0;}
 };
 
-class Player
+class Character
 {
 public:
 	Kruznice body;
-	Cara hands;
 	float angle;
 	float speed;
 	bool moveup, movedown, moveleft, moveright;
-	Player() {angle = 0; moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 2.5;}
+	Character() {angle = 0; moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 2.5;}
+};
+
+class Player : public Character
+{
+public:
+	Cara hands;
+	Player() {}
+	virtual ~Player() {}
 };
 
 class Shot : public Cara
@@ -124,13 +131,30 @@ void drawplayer(Player p)
 	cara(p.body.x, p.body.y, p.hands.x2, p.hands.y2);
 }
 
+int wallcollide(int x, int y, Rectangle roof, Rectangle ground, Rectangle left, Rectangle right)
+{
+	if(y < roof.h || y > ground.y || x < left.w || x > right.x)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
 int main(int argc, char** argv)
 {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	srand(tv.tv_usec);
+	int spawnx, spawny;
 	int t1, t2;
 	int mousex, mousey;
 	int shoot = 0;
 	int delay = 20;
 	int rate = 20;
+	int spawndelay = 0;
 
 	Obrazovka* obrazovka = Obrazovka::instance();
 	obrazovka->inicializuj(RESX, RESY, 0, 0);
@@ -161,6 +185,9 @@ int main(int argc, char** argv)
 	player.hands.y1 = player.body.y;
 	player.hands.x2 = player.body.x+25;
 	player.hands.y2 = player.body.y;
+
+	std::list<Character> enemies;
+	std::list<Character>::iterator e;
 
 	std::list<Shot> shots;
 	std::list<Shot>::iterator s;
@@ -234,24 +261,24 @@ int main(int argc, char** argv)
 		player.hands.x2 = player.body.x + cos(player.angle) * (player.body.r + 5);
 		player.hands.y2 = player.body.y + sin(player.angle) * (player.body.r + 5);
 
-		if(player.moveup == 1 && player.body.y > roof.h + player.body.r)
+		if(player.moveup && player.body.y > roof.h + player.body.r)
 		{
 			player.body.y -= player.speed;
 		}
-		if(player.movedown == 1 && player.body.y < ground.y - player.body.r)
+		if(player.movedown && player.body.y < ground.y - player.body.r)
 		{
 			player.body.y += player.speed;
 		}
-		if(player.moveleft == 1 && player.body.x > leftwall.w + player.body.r)
+		if(player.moveleft && player.body.x > leftwall.w + player.body.r)
 		{
 			player.body.x -= player.speed;
 		}
-		if(player.moveright == 1 && player.body.x < rightwall.x - player.body.r)
+		if(player.moveright && player.body.x < rightwall.x - player.body.r)
 		{
 			player.body.x += player.speed;
 		}
 
-		if(shoot == 1 && delay > rate)
+		if(shoot && delay > rate)
 		{
 			Shot* shot = new Shot();
 			shot -> x1 = player.body.x;
@@ -273,6 +300,44 @@ int main(int argc, char** argv)
 			s -> x2 += s -> vx2;
 			s -> y2 += s -> vy2;
 			cara(s -> x1, s -> y1, s -> x2, s -> y2);
+
+			if(wallcollide(s -> x2, s -> y2, roof, ground, leftwall, rightwall))
+			{
+				std::list<Shot>::iterator s2 = s;
+				s++;
+				shots.erase(s2);
+				s--;
+			}
+		}
+
+		if(spawndelay > 50)
+		{
+			while(1)
+			{
+				spawnx = nahoda(leftwall.w + 15, rightwall.x - 15);
+				spawny = nahoda(roof.h + 15, ground.y - 15);
+				if((abs(player.body.x - spawnx)*abs(player.body.x - spawnx)) + (abs(player.body.y - spawny)*abs(player.body.y - spawny)) > 300*300)
+				{
+					Character* enemy = new Character();
+					enemy -> body.x = spawnx;
+					enemy -> body.y = spawny;
+					enemy -> body.r = 15;
+					enemy -> speed = 1;
+					enemies.push_back(*enemy);
+					spawndelay = 0;
+					break;
+				}
+			}
+		}
+
+		for(e = enemies.begin(); e != enemies.end(); e++)
+		{
+			e -> angle = atan2(player.body.y - e -> body.y , player.body.x - e -> body.x);
+			e -> body.vx = cos(e -> angle) * e -> speed;
+			e -> body.vy = sin(e -> angle) * e -> speed;
+			e -> body.x += e -> body.vx;
+			e -> body.y += e -> body.vy;
+			kruznice(e -> body.x, e -> body.y, e -> body.r);
 		}
 
 		barva(255,255,255);
@@ -285,6 +350,7 @@ int main(int argc, char** argv)
 		obrazovka->aktualizuj();
 
 		delay++;
+		spawndelay++;
 
 		t2 = SDL_GetTicks();
 		if(t2-t1<=17)
