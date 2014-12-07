@@ -50,8 +50,9 @@ public:
 	Kruznice body;
 	float angle;
 	float speed;
+	float health;
 	bool moveup, movedown, moveleft, moveright;
-	Character() {angle = 0; moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 2.5;}
+	Character() {angle = 0; moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 2.5; health = 2;}
 };
 
 class Player : public Character
@@ -134,6 +135,18 @@ void drawplayer(Player p)
 int wallcollide(int x, int y, Rectangle roof, Rectangle ground, Rectangle left, Rectangle right)
 {
 	if(y < roof.h || y > ground.y || x < left.w || x > right.x)
+	{
+		return 1;
+	}
+	else
+	{
+		return 0;
+	}
+}
+
+int enemycollide(int x, int y, int ex, int ey, int er)
+{
+	if((abs(ex - x) * abs(ex - x)) + (abs(ey - y) * abs(ey - y)) < er * er)
 	{
 		return 1;
 	}
@@ -338,6 +351,27 @@ int main(int argc, char** argv)
 			e -> body.x += e -> body.vx;
 			e -> body.y += e -> body.vy;
 			kruznice(e -> body.x, e -> body.y, e -> body.r);
+
+			for(s = shots.begin(); s != shots.end(); s++)
+			{
+				if(enemycollide(s -> x2, s -> y2, e -> body.x, e -> body.y, e -> body.r))
+				{
+					std::list<Shot>::iterator s2 = s;
+					s++;
+					shots.erase(s2);
+					s--;
+
+					e -> health--;
+				}
+			}
+
+			if(e -> health == 0)
+			{
+				std::list<Character>::iterator e2 = e;
+				e++;
+				enemies.erase(e2);
+				e--;
+			}
 		}
 
 		barva(255,255,255);
