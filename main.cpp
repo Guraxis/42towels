@@ -410,11 +410,11 @@ int main(int argc, char** argv)
 					}
 				}
 			}
-			if(wallcollide(e -> body.x, e -> body.y, e -> body.r, roof, ground, leftwall, rightwall))
+			/*if(wallcollide(e -> body.x, e -> body.y, e -> body.r, roof, ground, leftwall, rightwall))
 			{
 				e -> body.vx = 0;
 				e -> body.vy = 0;
-			}
+			}*/
 			e -> body.x += e -> body.vx;
 			e -> body.y += e -> body.vy;
 			kruznice(e -> body.x, e -> body.y, e -> body.r);
