@@ -405,18 +405,29 @@ int main(int argc, char** argv)
 							&& e -> body.x != e1 -> body.x && e -> body.y != e1 -> body.y)
 					{
 						e -> tempangle = atan2(e -> body.y - e1 -> body.y, e -> body.x - e1 -> body.x);
-						e -> body.vx += cos(e -> tempangle) * e -> speed;
-						e -> body.vy += sin(e -> tempangle) * e -> speed;
+						e -> body.vx += cos(e -> tempangle) * e -> speed * 2.5;
+						e -> body.vy += sin(e -> tempangle) * e -> speed * 2.5;
 					}
 				}
 			}
-			/*if(wallcollide(e -> body.x, e -> body.y, e -> body.r, roof, ground, leftwall, rightwall))
-			{
-				e -> body.vx = 0;
-				e -> body.vy = 0;
-			}*/
 			e -> body.x += e -> body.vx;
 			e -> body.y += e -> body.vy;
+			while(e -> body.x - e -> body.r < leftwall.w)
+			{
+				e -> body.x++;
+			}
+			while(e -> body.x + e -> body.r > rightwall.x)
+			{
+				e -> body.x--;
+			}
+			while(e -> body.y - e -> body.r < roof.h)
+			{
+				e -> body.y++;
+			}
+			while(e -> body.y + e -> body.r > ground.y)
+			{
+				e -> body.y--;
+			}
 			kruznice(e -> body.x, e -> body.y, e -> body.r);
 
 			for(s = shots.begin(); s != shots.end(); s++)
