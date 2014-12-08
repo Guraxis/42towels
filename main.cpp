@@ -9,6 +9,8 @@
 #define RESX 800
 #define RESY 600
 
+Obrazovka* obrazovka = Obrazovka::instance();
+int t1, t2;
 
 float nahoda(float min, float max)
 {
@@ -50,7 +52,7 @@ public:
 	Kruznice body;
 	float angle;
 	float speed;
-	float health;
+	int health;
 	Character() {angle = 0;}
 };
 
@@ -58,7 +60,8 @@ class Enemy : public Character
 {
 public:
 	double tempangle;
-	Enemy() {tempangle = 0; health = 3; speed = 2.5;}
+	bool die;
+	Enemy() {tempangle = 0; health = 3; speed = 2.5; die = 0;}
 
 };
 
@@ -67,7 +70,7 @@ class Player : public Character
 public:
 	Cara hands;
 	bool moveup, movedown, moveleft, moveright;
-	Player() {moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 3;}
+	Player() {moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 3; health = 5;}
 };
 
 class Shot : public Cara
@@ -154,9 +157,9 @@ int wallcollide(int x, int y, int r, Rectangle roof, Rectangle ground, Rectangle
 	}
 }
 
-int enemycollide(int x, int y, int ex, int ey, int er)
+int enemycollide(int x, int y, int r, int ex, int ey, int er)
 {
-	if((abs(ex - x) * abs(ex - x)) + (abs(ey - y) * abs(ey - y)) < er * er)
+	if((abs(ex - x) * abs(ex - x)) + (abs(ey - y) * abs(ey - y)) < (er + r) * (er + r))
 	{
 		return 1;
 	}
@@ -166,7 +169,32 @@ int enemycollide(int x, int y, int ex, int ey, int er)
 	}
 }
 
-int main(int argc, char** argv)
+void dead(int x, int y)
+{
+	struct timeval tv;
+	while(1)
+	{
+		t1 = SDL_GetTicks();
+		SDL_FillRect(obrazovka->screen, NULL, 0);
+		obrazovka->aktualizuj();
+		SDL_Event devent;
+		while(SDL_PollEvent(&devent))
+		{
+			switch(devent.key.keysym.sym)
+			{
+			case SDLK_SPACE:
+				return;
+			}
+		}
+		t2 = SDL_GetTicks();
+		if(t2-t1<=17)
+		{
+			SDL_Delay(17-(t2-t1));
+		}
+	}
+}
+
+bool game()
 {
 	struct timeval tv;
 	gettimeofday(&tv, NULL);
@@ -174,15 +202,13 @@ int main(int argc, char** argv)
 	int spawnx, spawny;
 	int spawnlimit = 35;
 	int spawncount = 0;
-	int t1, t2;
 	int mousex, mousey;
 	int shoot = 0;
 	int delay = 20;
-	int rate = 20;
+	int rate = 25;
 	int spawndelay = 0;
 	bool nolimit = 0;
 
-	Obrazovka* obrazovka = Obrazovka::instance();
 	obrazovka->inicializuj(RESX, RESY, 0, 0);
 
 	Rectangle ground, roof, leftwall, rightwall;
@@ -238,7 +264,7 @@ int main(int argc, char** argv)
 				{
 				case SDLK_ESCAPE:
 					SDL_Quit();
-					return 0;
+					return 1;
 				case SDLK_w:
 					player.moveup = 1;
 					break;
@@ -294,7 +320,7 @@ int main(int argc, char** argv)
 				break;
 			case SDL_QUIT:
 				SDL_Quit();
-				return 0;
+				return 1;
 			}
 		}
 
@@ -370,7 +396,7 @@ int main(int argc, char** argv)
 			}
 		}
 
-		if(spawndelay > 50 && spawncount < spawnlimit)
+		if(spawndelay > 100 && spawncount < spawnlimit)
 		{
 			while(1)
 			{
@@ -393,6 +419,7 @@ int main(int argc, char** argv)
 
 		for(e = enemies.begin(); e != enemies.end(); e++)
 		{
+			barva(255,255,255);
 			e -> angle = atan2(player.body.y - e -> body.y , player.body.x - e -> body.x);
 			e -> body.vx = cos(e -> angle) * e -> speed;
 			e -> body.vy = sin(e -> angle) * e -> speed;
@@ -428,11 +455,10 @@ int main(int argc, char** argv)
 			{
 				e -> body.y--;
 			}
-			kruznice(e -> body.x, e -> body.y, e -> body.r);
 
 			for(s = shots.begin(); s != shots.end(); s++)
 			{
-				if(enemycollide(s -> x2, s -> y2, e -> body.x, e -> body.y, e -> body.r))
+				if(enemycollide(s -> x2, s -> y2, 0, e -> body.x, e -> body.y, e -> body.r))
 				{
 					s -> stick = e;
 					e -> health -= s -> damage;
@@ -440,8 +466,21 @@ int main(int argc, char** argv)
 				}
 			}
 
-			if(e -> health <= 0)
+			if(enemycollide(e -> body.x, e -> body.y, e -> body.r, player.body.x, player.body.y, player.body.r))
 			{
+				player.health--;
+				e -> die = 1;
+			}
+
+			switch(e -> health)
+			{
+			case 2:
+				barva(255,100,100);
+				break;
+			case 1:
+				barva(255,0,0);
+				break;
+			case 0:
 				for(s = shots.begin(); s != shots.end(); s++)
 				{
 					if(s -> stick == e)
@@ -452,7 +491,12 @@ int main(int argc, char** argv)
 						s--;
 					}
 				}
+				e -> die = 1;
+				break;
+			}
 
+			if(e -> die)
+			{
 				Animace* death = new Animace();
 				death -> nacti("death.png", 33, 33);
 				death -> umisti(e -> body.x - 17, e -> body.y - 17);
@@ -462,8 +506,10 @@ int main(int argc, char** argv)
 				e++;
 				enemies.erase(e2);
 				e--;
+
 				spawncount--;
 			}
+			kruznice(e -> body.x, e -> body.y, e -> body.r);
 		}
 
 		for(d = deaths.begin(); d != deaths.end(); d++)
@@ -479,12 +525,31 @@ int main(int argc, char** argv)
 			}
 		}
 
+		switch(player.health)
+		{
+		case 4:
+			barva(255,150,150);
+			break;
+		case 3:
+			barva(255,100,100);
+			break;
+		case 2:
+			barva(255,50,50);
+			break;
+		case 1:
+			barva(220,0,0);
+			break;
+		case 0:
+			dead(player.body.x, player.body.y);
+			return 0;
+		}
+
+		drawplayer(player);
 		barva(255,255,255);
 		rectangle(ground);
 		rectangle(roof);
 		rectangle(leftwall);
 		rectangle(rightwall);
-		drawplayer(player);
 
 		obrazovka->aktualizuj();
 
@@ -495,6 +560,18 @@ int main(int argc, char** argv)
 		if(t2-t1<=17 && nolimit == 0)
 		{
 			SDL_Delay(17-(t2-t1));
+		}
+	}
+}
+
+int main(int argc, char** argv)
+{
+	while(1)
+	{
+		if(game())
+		{
+			SDL_QUIT;
+			return 0;
 		}
 	}
 }
