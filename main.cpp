@@ -9,6 +9,7 @@
 #include "shapes.h"
 #include "enemy.h"
 #include "player.h"
+#include "shot.h"
 
 #define RESX 800
 #define RESY 600
@@ -23,16 +24,7 @@ float nahoda(float min, float max)
 }
 
 
-class Shot : public Cara
-{
-public:
-	float speed;
-	bool stuck;
-	float damage;
-	std::list<EnemyBasic>::iterator stickb;
-	std::list<EnemyTank>::iterator stickt;
-	Shot() {speed = 3.5; stuck = 0; damage = 1;}
-};
+
 
 int wallcollide(int x, int y, int r, Rectangle roof, Rectangle ground, Rectangle left, Rectangle right)
 {
