@@ -5,12 +5,17 @@
 #include <sys/time.h>
 
 #include "obrazek.h"
+#include "character.h"
+#include "shapes.h"
+#include "enemy.h"
+#include "player.h"
 
 #define RESX 800
 #define RESY 600
 
 Obrazovka* obrazovka = Obrazovka::instance();
 int t1, t2;
+Pismo numbers;
 
 float nahoda(float min, float max)
 {
@@ -18,132 +23,16 @@ float nahoda(float min, float max)
 }
 
 
-class Rectangle
-{
-public:
-	float x, y, w, h, vx, vy;
-	Rectangle() {vx = 0; vy = 0;}
-};
-
-class Kruznice
-{
-public:
-	float x, y, r, vx, vy;
-	Kruznice() {vx = 0; vy = 0;}
-};
-
-class Bod
-{
-public:
-	float x, y, vx, vy;
-	Bod() {vx = 0; vy = 0;}
-};
-
-class Cara
-{
-public:
-	float x1, y1, x2, y2, vx1, vy1, vx2, vy2;
-	Cara() {vx1 = 0; vy1 = 0; vx2 = 0; vy2 = 0;}
-};
-
-class Character
-{
-public:
-	Kruznice body;
-	float angle;
-	float speed;
-	int health;
-	Character() {angle = 0;}
-};
-
-class Enemy : public Character
-{
-public:
-	double tempangle;
-	bool die;
-	Enemy() {tempangle = 0; health = 3; speed = 2.5; die = 0;}
-
-};
-
-class Player : public Character
-{
-public:
-	Cara hands;
-	bool moveup, movedown, moveleft, moveright;
-	Player() {moveup = 0; movedown = 0; moveleft = 0; moveright = 0; speed = 3; health = 5;}
-};
-
 class Shot : public Cara
 {
 public:
 	float speed;
 	bool stuck;
 	float damage;
-	std::list<Enemy>::iterator stick;
+	std::list<EnemyBasic>::iterator stickb;
+	std::list<EnemyTank>::iterator stickt;
 	Shot() {speed = 3.5; stuck = 0; damage = 1;}
 };
-
-void kruznice(int x, int y, int r)
-{
-	for(float alfa=0;alfa<2*M_PI;alfa+=0.01)
-	{
-		bod(x+cos(alfa)*r,y+sin(alfa)*r);
-	}
-}
-
-void kruznice(Kruznice a)
-{
-	for(float alfa=0;alfa<2*M_PI;alfa+=0.01)
-	{
-		bod(a.x+cos(alfa)*a.r,a.y+sin(alfa)*a.r);
-	}
-}
-
-void rectangle(Rectangle a)
-{
-	for(int i=0; i<a.h; i++)
-	{
-		cara(a.x,a.y+i,a.x+a.w,a.y+i);
-	}
-}
-
-void hrectangle(Rectangle a)
-{
-	cara(a.x,a.y,a.x+a.w,a.y);
-	cara(a.x+a.w,a.y+a.h);
-	cara(a.x,a.y+a.h);
-	cara(a.x,a.y);
-}
-
-void triangle(int x, int y, int w, int h)
-{
-	cara(x,y,x+w,y);
-	cara(x+w/2,y-h);
-	cara(x,y);
-}
-
-void triangle(int x1, int y1, int x2, int y2, int x3, int y3)
-{
-	cara(x1,y1,x2,y2);
-	cara(x3,y3);
-	cara(x1,y1);
-}
-
-void hvezda(int x, int y, int r)
-{
-	bod(x+r,y);
-	for(float alfa=0;alfa<10*M_PI;alfa+=2*M_PI/12*5)
-	{
-		cara(x+cos(alfa)*r,y+sin(alfa)*r);
-	}
-	cara(x+r,y);
-}
-
-void drawplayer(Player p)
-{
-	kruznice(p.body);
-	cara(p.body.x, p.body.y, p.hands.x2, p.hands.y2);
-}
 
 int wallcollide(int x, int y, int r, Rectangle roof, Rectangle ground, Rectangle left, Rectangle right)
 {
@@ -169,13 +58,16 @@ int enemycollide(int x, int y, int r, int ex, int ey, int er)
 	}
 }
 
-void dead(int x, int y)
+bool dead(int x, int y)
 {
+	numbers.nacti("numbers.png", "0123456789");
 	struct timeval tv;
 	while(1)
 	{
 		t1 = SDL_GetTicks();
 		SDL_FillRect(obrazovka->screen, NULL, 0);
+		numbers.umisti(RESX/3, RESY/3);
+		numbers.kresli("0123");
 		obrazovka->aktualizuj();
 		SDL_Event devent;
 		while(SDL_PollEvent(&devent))
@@ -183,7 +75,13 @@ void dead(int x, int y)
 			switch(devent.key.keysym.sym)
 			{
 			case SDLK_SPACE:
-				return;
+				return 0;
+			case SDLK_ESCAPE:
+				return 1;
+			}
+			if(devent.type == SDL_QUIT)
+			{
+				return 1;
 			}
 		}
 		t2 = SDL_GetTicks();
@@ -200,16 +98,18 @@ bool game()
 	gettimeofday(&tv, NULL);
 	srand(tv.tv_usec);
 	int spawnx, spawny;
-	int spawnlimit = 35;
+	int spawnlimit = 50;
 	int spawncount = 0;
 	int mousex, mousey;
 	int shoot = 0;
 	int delay = 20;
+	int basicspawndelay = 0;
+	int tankspawndelay = 0;
+	int basicspawnrate = 100;
+	int tankspawnrate = 500;
 	int rate = 25;
-	int spawndelay = 0;
 	bool nolimit = 0;
 
-	obrazovka->inicializuj(RESX, RESY, 0, 0);
 
 	Rectangle ground, roof, leftwall, rightwall;
 	ground.x = 0;
@@ -238,9 +138,13 @@ bool game()
 	player.hands.x2 = player.body.x+25;
 	player.hands.y2 = player.body.y;
 
-	std::list<Enemy> enemies;
-	std::list<Enemy>::iterator e;
-	std::list<Enemy>::iterator e1;
+	std::list<EnemyBasic> enemiesbasic;
+	std::list<EnemyBasic>::iterator eb;
+	std::list<EnemyBasic>::iterator eb1;
+
+	std::list<EnemyTank> enemiestank;
+	std::list<EnemyTank>::iterator et;
+	std::list<EnemyTank>::iterator et1;
 
 	std::list<Shot> shots;
 	std::list<Shot>::iterator s;
@@ -364,14 +268,26 @@ bool game()
 
 		for(s = shots.begin(); s != shots.end(); s++)
 		{
-			for(e = enemies.begin(); e != enemies.end(); e++)
+			for(eb = enemiesbasic.begin(); eb != enemiesbasic.end(); eb++)
 			{
-				if(s -> stick == e)
+				if(s -> stickb == eb)
 				{
-					s -> x1 += e -> body.vx;
-					s -> y1 += e -> body.vy;
-					s -> x2 += e -> body.vx;
-					s -> y2 += e -> body.vy;
+					s -> x1 += eb -> body.vx;
+					s -> y1 += eb -> body.vy;
+					s -> x2 += eb -> body.vx;
+					s -> y2 += eb -> body.vy;
+					s -> stuck = 1;
+					break;
+				}
+			}
+			for(et = enemiestank.begin(); et != enemiestank.end(); et++)
+			{
+				if(s -> stickt == et)
+				{
+					s -> x1 += et -> body.vx;
+					s -> y1 += et -> body.vy;
+					s -> x2 += et -> body.vx;
+					s -> y2 += et -> body.vy;
 					s -> stuck = 1;
 					break;
 				}
@@ -396,7 +312,7 @@ bool game()
 			}
 		}
 
-		if(spawndelay > 100 && spawncount < spawnlimit)
+		if(basicspawndelay > basicspawnrate && spawncount < spawnlimit)
 		{
 			while(1)
 			{
@@ -404,75 +320,110 @@ bool game()
 				spawny = nahoda(roof.h + 15, ground.y - 15);
 				if((abs(player.body.x - spawnx)*abs(player.body.x - spawnx)) + (abs(player.body.y - spawny)*abs(player.body.y - spawny)) > 300*300)
 				{
-					Enemy* enemy = new Enemy();
-					enemy -> body.x = spawnx;
-					enemy -> body.y = spawny;
-					enemy -> body.r = 15;
-					enemy -> speed = 1;
-					enemies.push_back(*enemy);
-					spawndelay = 0;
+					EnemyBasic* eb = new EnemyBasic();
+					eb -> body.x = spawnx;
+					eb -> body.y = spawny;
+					eb -> body.r = 15;
+					eb -> speed = 1;
+					enemiesbasic.push_back(*eb);
+					basicspawndelay = 0;
 					spawncount ++;
 					break;
 				}
 			}
 		}
 
-		for(e = enemies.begin(); e != enemies.end(); e++)
+		if(tankspawndelay > tankspawnrate && spawncount < spawnlimit)
+		{
+			while(1)
+			{
+				spawnx = nahoda(leftwall.w + 15, rightwall.x - 15);
+				spawny = nahoda(roof.h + 15, ground.y - 15);
+				if((abs(player.body.x - spawnx)*abs(player.body.x - spawnx)) + (abs(player.body.y - spawny)*abs(player.body.y - spawny)) > 300*300)
+				{
+					EnemyTank* et = new EnemyTank();
+					et -> body.x = spawnx;
+					et -> body.y = spawny;
+					et -> body.r = 15;
+					et -> speed = 1;
+					enemiestank.push_back(*et);
+					tankspawndelay = 0;
+					spawncount ++;
+					break;
+				}
+			}
+		}
+
+		for(eb = enemiesbasic.begin(); eb != enemiesbasic.end(); eb++)
 		{
 			barva(255,255,255);
-			e -> angle = atan2(player.body.y - e -> body.y , player.body.x - e -> body.x);
-			e -> body.vx = cos(e -> angle) * e -> speed;
-			e -> body.vy = sin(e -> angle) * e -> speed;
-			for(e1 = enemies.begin(); e1 != enemies.end(); e1++)
+			eb -> angle = atan2(player.body.y - eb -> body.y , player.body.x - eb -> body.x);
+			eb -> body.vx = cos(eb -> angle) * eb -> speed;
+			eb -> body.vy = sin(eb -> angle) * eb -> speed;
+			for(eb1 = enemiesbasic.begin(); eb1 != enemiesbasic.end(); eb1++)
 			{
 				{
-					if((abs(e -> body.x - e1 -> body.x)) * (abs(e -> body.x - e1 -> body.x))
-							+ (abs(e -> body.y - e1 -> body.y)) * (abs(e -> body.y - e1 -> body.y))
-							< (e -> body.r + e1 -> body.r) * (e -> body.r + e1 -> body.r)
-							&& e -> body.x != e1 -> body.x && e -> body.y != e1 -> body.y)
+					if((abs(eb -> body.x - eb1 -> body.x)) * (abs(eb -> body.x - eb1 -> body.x))
+							+ (abs(eb -> body.y - eb1 -> body.y)) * (abs(eb -> body.y - eb1 -> body.y))
+							< (eb -> body.r + eb1 -> body.r) * (eb -> body.r + eb1 -> body.r)
+							&& eb -> body.x != eb1 -> body.x && eb -> body.y != eb1 -> body.y)
 					{
-						e -> tempangle = atan2(e -> body.y - e1 -> body.y, e -> body.x - e1 -> body.x);
-						e -> body.vx += cos(e -> tempangle) * e -> speed * 2.5;
-						e -> body.vy += sin(e -> tempangle) * e -> speed * 2.5;
+						eb -> tempangle = atan2(eb -> body.y - eb1 -> body.y, eb -> body.x - eb1 -> body.x);
+						eb -> body.vx += cos(eb -> tempangle) * eb -> speed * 2.5;
+						eb -> body.vy += sin(eb -> tempangle) * eb -> speed * 2.5;
 					}
 				}
 			}
-			e -> body.x += e -> body.vx;
-			e -> body.y += e -> body.vy;
-			while(e -> body.x - e -> body.r < leftwall.w)
+			for(et1 = enemiestank.begin(); et1 != enemiestank.end(); et1++)
 			{
-				e -> body.x++;
+				{
+					if((abs(eb -> body.x - et1 -> body.x)) * (abs(eb -> body.x - et1 -> body.x))
+							+ (abs(eb -> body.y - et1 -> body.y)) * (abs(eb -> body.y - et1 -> body.y))
+							< (eb -> body.r + et1 -> body.r) * (eb -> body.r + et1 -> body.r)
+							&& eb -> body.x != et1 -> body.x && eb -> body.y != et1 -> body.y)
+					{
+						eb -> tempangle = atan2(eb -> body.y - et1 -> body.y, eb -> body.x - et1 -> body.x);
+						eb -> body.vx += cos(eb -> tempangle) * eb -> speed * 2.5;
+						eb -> body.vy += sin(eb -> tempangle) * eb -> speed * 2.5;
+					}
+				}
 			}
-			while(e -> body.x + e -> body.r > rightwall.x)
+			eb -> body.x += eb -> body.vx;
+			eb -> body.y += eb -> body.vy;
+			while(eb -> body.x - eb -> body.r < leftwall.w)
 			{
-				e -> body.x--;
+				eb -> body.x++;
 			}
-			while(e -> body.y - e -> body.r < roof.h)
+			while(eb -> body.x + eb -> body.r > rightwall.x)
 			{
-				e -> body.y++;
+				eb -> body.x--;
 			}
-			while(e -> body.y + e -> body.r > ground.y)
+			while(eb -> body.y - eb -> body.r < roof.h)
 			{
-				e -> body.y--;
+				eb -> body.y++;
+			}
+			while(eb -> body.y + eb -> body.r > ground.y)
+			{
+				eb -> body.y--;
 			}
 
 			for(s = shots.begin(); s != shots.end(); s++)
 			{
-				if(enemycollide(s -> x2, s -> y2, 0, e -> body.x, e -> body.y, e -> body.r))
+				if(enemycollide(s -> x2, s -> y2, 0, eb -> body.x, eb -> body.y, eb -> body.r) && !s -> stuck)
 				{
-					s -> stick = e;
-					e -> health -= s -> damage;
+					s -> stickb = eb;
+					eb -> health -= s -> damage;
 					s -> damage = 0;
 				}
 			}
 
-			if(enemycollide(e -> body.x, e -> body.y, e -> body.r, player.body.x, player.body.y, player.body.r))
+			if(enemycollide(eb -> body.x, eb -> body.y, eb -> body.r, player.body.x, player.body.y, player.body.r))
 			{
 				player.health--;
-				e -> die = 1;
+				eb -> die = 1;
 			}
 
-			switch(e -> health)
+			switch(eb -> health)
 			{
 			case 2:
 				barva(255,100,100);
@@ -481,9 +432,20 @@ bool game()
 				barva(255,0,0);
 				break;
 			case 0:
+				eb -> die = 1;
+				break;
+			}
+
+			if(eb -> die)
+			{
+				Animace* death = new Animace();
+				death -> nacti("death.png", 33, 33);
+				death -> umisti(eb -> body.x - 17, eb -> body.y - 17);
+				deaths.push_back(*death);
+
 				for(s = shots.begin(); s != shots.end(); s++)
 				{
-					if(s -> stick == e)
+					if(s -> stickb == eb)
 					{
 						std::list<Shot>::iterator s2 = s;
 						s++;
@@ -491,25 +453,132 @@ bool game()
 						s--;
 					}
 				}
-				e -> die = 1;
-				break;
-			}
 
-			if(e -> die)
-			{
-				Animace* death = new Animace();
-				death -> nacti("death.png", 33, 33);
-				death -> umisti(e -> body.x - 17, e -> body.y - 17);
-				deaths.push_back(*death);
-
-				std::list<Enemy>::iterator e2 = e;
-				e++;
-				enemies.erase(e2);
-				e--;
+				std::list<EnemyBasic>::iterator eb2 = eb;
+				eb++;
+				enemiesbasic.erase(eb2);
+				eb--;
 
 				spawncount--;
 			}
-			kruznice(e -> body.x, e -> body.y, e -> body.r);
+			kruznice(eb -> body);
+		}
+
+
+		for(et = enemiestank.begin(); et != enemiestank.end(); et++)
+		{
+			barva(255,255,255);
+			et -> angle = atan2(player.body.y - et -> body.y , player.body.x - et -> body.x);
+			et -> body.vx = cos(et -> angle) * et -> speed;
+			et -> body.vy = sin(et -> angle) * et -> speed;
+			for(et1 = enemiestank.begin(); et1 != enemiestank.end(); et1++)
+			{
+				{
+					if((abs(et -> body.x - et1 -> body.x)) * (abs(et -> body.x - et1 -> body.x))
+							+ (abs(et -> body.y - et1 -> body.y)) * (abs(et -> body.y - et1 -> body.y))
+							< (et -> body.r + et1 -> body.r) * (et -> body.r + et1 -> body.r)
+							&& et -> body.x != et1 -> body.x && et -> body.y != et1 -> body.y)
+					{
+						et -> tempangle = atan2(et -> body.y - et1 -> body.y, et -> body.x - et1 -> body.x);
+						et -> body.vx += cos(et -> tempangle) * et -> speed * 2.5;
+						et -> body.vy += sin(et -> tempangle) * et -> speed * 2.5;
+					}
+				}
+			}
+			for(eb1 = enemiesbasic.begin(); eb1 != enemiesbasic.end(); eb1++)
+			{
+				{
+					if((abs(et -> body.x - eb1 -> body.x)) * (abs(et -> body.x - eb1 -> body.x))
+							+ (abs(et -> body.y - eb1 -> body.y)) * (abs(et -> body.y - eb1 -> body.y))
+							< (et -> body.r + eb1 -> body.r) * (et -> body.r + eb1 -> body.r)
+							&& et -> body.x != eb1 -> body.x && et -> body.y != eb1 -> body.y)
+					{
+						et -> tempangle = atan2(et -> body.y - eb1 -> body.y, et -> body.x - eb1 -> body.x);
+						et -> body.vx += cos(et -> tempangle) * et -> speed * 2.5;
+						et -> body.vy += sin(et -> tempangle) * et -> speed * 2.5;
+					}
+				}
+			}
+			et -> body.x += et -> body.vx;
+			et -> body.y += et -> body.vy;
+			while(et -> body.x - et -> body.r < leftwall.w)
+			{
+				et -> body.x++;
+			}
+			while(et -> body.x + et -> body.r > rightwall.x)
+			{
+				et -> body.x--;
+			}
+			while(et -> body.y - et -> body.r < roof.h)
+			{
+				et -> body.y++;
+			}
+			while(et -> body.y + et -> body.r > ground.y)
+			{
+				et -> body.y--;
+			}
+
+			for(s = shots.begin(); s != shots.end(); s++)
+			{
+				if(enemycollide(s -> x2, s -> y2, 0, et -> body.x, et -> body.y, et -> body.r) && !s -> stuck)
+				{
+					s -> stickt = et;
+					et -> health -= s -> damage;
+					s -> damage = 0;
+				}
+			}
+
+			if(enemycollide(et -> body.x, et -> body.y, et -> body.r, player.body.x, player.body.y, player.body.r))
+			{
+				player.health--;
+				et -> die = 1;
+			}
+
+			switch(et -> health)
+			{
+			case 4:
+				barva(255,150,150);
+				break;
+			case 3:
+				barva(255,100,100);
+				break;
+			case 2:
+				barva(255,50,50);
+				break;
+			case 1:
+				barva(220,0,0);
+				break;
+			case 0:
+				et -> die = 1;
+				break;
+			}
+
+			if(et -> die)
+			{
+				Animace* death = new Animace();
+				death -> nacti("death.png", 33, 33);
+				death -> umisti(et -> body.x - 17, et -> body.y - 17);
+				deaths.push_back(*death);
+
+				for(s = shots.begin(); s != shots.end(); s++)
+				{
+					if(s -> stickt == et)
+					{
+						std::list<Shot>::iterator s2 = s;
+						s++;
+						shots.erase(s2);
+						s--;
+					}
+				}
+
+				std::list<EnemyTank>::iterator et2 = et;
+				et++;
+				enemiestank.erase(et2);
+				et--;
+
+				spawncount--;
+			}
+			kruznice(et -> body.x, et -> body.y, et -> body.r);
 		}
 
 		for(d = deaths.begin(); d != deaths.end(); d++)
@@ -540,11 +609,26 @@ bool game()
 			barva(220,0,0);
 			break;
 		case 0:
-			dead(player.body.x, player.body.y);
+			if(dead(player.body.x, player.body.y))
+			{
+				return 1;
+			}
+			return 0;
+		case -1:
+			if(dead(player.body.x, player.body.y))
+			{
+				return 1;
+			}
+			return 0;
+		case -2:
+			if(dead(player.body.x, player.body.y))
+			{
+				return 1;
+			}
 			return 0;
 		}
 
-		drawplayer(player);
+		player.drawplayer();
 		barva(255,255,255);
 		rectangle(ground);
 		rectangle(roof);
@@ -554,7 +638,8 @@ bool game()
 		obrazovka->aktualizuj();
 
 		delay++;
-		spawndelay++;
+		basicspawndelay++;
+		tankspawndelay++;
 
 		t2 = SDL_GetTicks();
 		if(t2-t1<=17 && nolimit == 0)
@@ -566,6 +651,7 @@ bool game()
 
 int main(int argc, char** argv)
 {
+	obrazovka->inicializuj(RESX, RESY, 0, 0);
 	while(1)
 	{
 		if(game())
