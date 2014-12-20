@@ -21,6 +21,7 @@ public:
 class EnemyTank : public Enemy
 {
 public:
+	Rectangle body;
 	EnemyTank();
 };
 #endif // ENEMY_H

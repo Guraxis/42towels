@@ -315,8 +315,6 @@ bool game()
 					EnemyBasic* eb = new EnemyBasic();
 					eb -> body.x = spawnx;
 					eb -> body.y = spawny;
-					eb -> body.r = 15;
-					eb -> speed = 1;
 					enemiesbasic.push_back(*eb);
 					basicspawndelay = 0;
 					spawncount ++;
@@ -336,8 +334,6 @@ bool game()
 					EnemyTank* et = new EnemyTank();
 					et -> body.x = spawnx;
 					et -> body.y = spawny;
-					et -> body.r = 15;
-					et -> speed = 1;
 					enemiestank.push_back(*et);
 					tankspawndelay = 0;
 					spawncount ++;
@@ -348,7 +344,6 @@ bool game()
 
 		for(eb = enemiesbasic.begin(); eb != enemiesbasic.end(); eb++)
 		{
-			barva(255,255,255);
 			eb -> angle = atan2(player.body.y - eb -> body.y , player.body.x - eb -> body.x);
 			eb -> body.vx = cos(eb -> angle) * eb -> speed;
 			eb -> body.vy = sin(eb -> angle) * eb -> speed;
@@ -361,22 +356,22 @@ bool game()
 							&& eb -> body.x != eb1 -> body.x && eb -> body.y != eb1 -> body.y)
 					{
 						eb -> tempangle = atan2(eb -> body.y - eb1 -> body.y, eb -> body.x - eb1 -> body.x);
-						eb -> body.vx += cos(eb -> tempangle) * eb -> speed * 2.5;
-						eb -> body.vy += sin(eb -> tempangle) * eb -> speed * 2.5;
+						eb -> body.vx += cos(eb -> tempangle) * eb -> speed * 1.5;
+						eb -> body.vy += sin(eb -> tempangle) * eb -> speed * 1.5;
 					}
 				}
 			}
 			for(et1 = enemiestank.begin(); et1 != enemiestank.end(); et1++)
 			{
 				{
-					if((abs(eb -> body.x - et1 -> body.x)) * (abs(eb -> body.x - et1 -> body.x))
-							+ (abs(eb -> body.y - et1 -> body.y)) * (abs(eb -> body.y - et1 -> body.y))
-							< (eb -> body.r + et1 -> body.r) * (eb -> body.r + et1 -> body.r)
-							&& eb -> body.x != et1 -> body.x && eb -> body.y != et1 -> body.y)
+					if((abs(eb -> body.x - (et1 -> body.x + et1 -> body.w/2))) * (abs(eb -> body.x - (et1 -> body.x + et1 -> body.w/2)))
+							+ (abs(eb -> body.y - (et1 -> body.y + et1 -> body.w/2))) * (abs(eb -> body.y - (et1 -> body.y + et1 -> body.w/2)))
+							< (eb -> body.r + et1 -> body.w/2) * (eb -> body.r + et1 -> body.w/2)
+							&& eb -> body.x != et1 -> body.x + et1 -> body.w/2 && eb -> body.y != et1 -> body.y + et1 -> body.w/2)
 					{
-						eb -> tempangle = atan2(eb -> body.y - et1 -> body.y, eb -> body.x - et1 -> body.x);
-						eb -> body.vx += cos(eb -> tempangle) * eb -> speed * 2.5;
-						eb -> body.vy += sin(eb -> tempangle) * eb -> speed * 2.5;
+						eb -> tempangle = atan2(eb -> body.y - (et1 -> body.y + et1 -> body.w/2), eb -> body.x - (et1 -> body.x + et1 -> body.w/2));
+						eb -> body.vx += cos(eb -> tempangle) * eb -> speed * 1.5;
+						eb -> body.vy += sin(eb -> tempangle) * eb -> speed * 1.5;
 					}
 				}
 			}
@@ -417,16 +412,22 @@ bool game()
 
 			switch(eb -> health)
 			{
+			case 3:
+				barva(255,255,255);
+				break;
 			case 2:
 				barva(255,100,100);
 				break;
 			case 1:
 				barva(255,0,0);
 				break;
-			case 0:
-				eb -> die = 1;
-				break;
 			}
+
+			if(eb -> health <= 0)
+			{
+				eb -> die = 1;
+			}
+
 
 			if(eb -> die)
 			{
@@ -459,19 +460,18 @@ bool game()
 
 		for(et = enemiestank.begin(); et != enemiestank.end(); et++)
 		{
-			barva(255,255,255);
-			et -> angle = atan2(player.body.y - et -> body.y , player.body.x - et -> body.x);
+			et -> angle = atan2(player.body.y - et -> body.y + et -> body.w/2, player.body.x - et -> body.x + et -> body.w/2);
 			et -> body.vx = cos(et -> angle) * et -> speed;
 			et -> body.vy = sin(et -> angle) * et -> speed;
 			for(et1 = enemiestank.begin(); et1 != enemiestank.end(); et1++)
 			{
 				{
-					if((abs(et -> body.x - et1 -> body.x)) * (abs(et -> body.x - et1 -> body.x))
-							+ (abs(et -> body.y - et1 -> body.y)) * (abs(et -> body.y - et1 -> body.y))
-							< (et -> body.r + et1 -> body.r) * (et -> body.r + et1 -> body.r)
-							&& et -> body.x != et1 -> body.x && et -> body.y != et1 -> body.y)
+					if((abs((et -> body.x + et -> body.w/2) - (et1 -> body.x + et1 -> body.w/2))) * (abs((et -> body.x + et -> body.w/2) - (et1 -> body.x + et1 -> body.w/2)))
+							+ (abs((et -> body.y + et -> body.w/2) - (et1 -> body.y + et1 -> body.w/2))) * (abs((et -> body.y + et -> body.w/2) - (et1 -> body.y + et1 -> body.w/2)))
+							< (et -> body.w/2 + et1 -> body.w/2) * (et -> body.w/2 + et1 -> body.w/2)
+							&& et -> body.x + et -> body.w/2!= et1 -> body.x + et -> body.w/2 && et -> body.y + et -> body.w/2!= et1 -> body.y + et -> body.w/2)
 					{
-						et -> tempangle = atan2(et -> body.y - et1 -> body.y, et -> body.x - et1 -> body.x);
+						et -> tempangle = atan2((et -> body.y + et -> body.w/2) - (et1 -> body.y + et1 -> body.w/2), (et -> body.x + et -> body.w/2) - (et1 -> body.x + et1 -> body.w/2));
 						et -> body.vx += cos(et -> tempangle) * et -> speed * 2.5;
 						et -> body.vy += sin(et -> tempangle) * et -> speed * 2.5;
 					}
@@ -480,12 +480,12 @@ bool game()
 			for(eb1 = enemiesbasic.begin(); eb1 != enemiesbasic.end(); eb1++)
 			{
 				{
-					if((abs(et -> body.x - eb1 -> body.x)) * (abs(et -> body.x - eb1 -> body.x))
-							+ (abs(et -> body.y - eb1 -> body.y)) * (abs(et -> body.y - eb1 -> body.y))
-							< (et -> body.r + eb1 -> body.r) * (et -> body.r + eb1 -> body.r)
-							&& et -> body.x != eb1 -> body.x && et -> body.y != eb1 -> body.y)
+					if((abs((et -> body.x + et -> body.w/2) - eb1 -> body.x)) * (abs((et -> body.x + et -> body.w/2) - eb1 -> body.x))
+							+ (abs((et -> body.y + et -> body.w/2) - eb1 -> body.y)) * (abs((et -> body.y + et -> body.w/2) - eb1 -> body.y))
+							< (et -> body.w/2 + eb1 -> body.r) * (et -> body.w/2 + eb1 -> body.r)
+							&& et -> body.x + et -> body.w/2 != eb1 -> body.x + et -> body.w/2 && et -> body.y + et -> body.w/2 != eb1 -> body.y + et -> body.w/2)
 					{
-						et -> tempangle = atan2(et -> body.y - eb1 -> body.y, et -> body.x - eb1 -> body.x);
+						et -> tempangle = atan2((et -> body.y + et -> body.w/2) - eb1 -> body.y, (et -> body.x + et -> body.w/2) - eb1 -> body.x);
 						et -> body.vx += cos(et -> tempangle) * et -> speed * 2.5;
 						et -> body.vy += sin(et -> tempangle) * et -> speed * 2.5;
 					}
@@ -493,26 +493,26 @@ bool game()
 			}
 			et -> body.x += et -> body.vx;
 			et -> body.y += et -> body.vy;
-			while(et -> body.x - et -> body.r < leftwall.w)
+			while(et -> body.x + et -> body.w/2- et -> body.w/2 < leftwall.w)
 			{
 				et -> body.x++;
 			}
-			while(et -> body.x + et -> body.r > rightwall.x)
+			while(et -> body.x + et -> body.w/2+ et -> body.w/2 > rightwall.x)
 			{
 				et -> body.x--;
 			}
-			while(et -> body.y - et -> body.r < roof.h)
+			while(et -> body.y + et -> body.w/2- et -> body.w/2 < roof.h)
 			{
 				et -> body.y++;
 			}
-			while(et -> body.y + et -> body.r > ground.y)
+			while(et -> body.y + et -> body.w/2+ et -> body.w/2 > ground.y)
 			{
 				et -> body.y--;
 			}
 
 			for(s = shots.begin(); s != shots.end(); s++)
 			{
-				if(enemycollide(s -> x2, s -> y2, 0, et -> body.x, et -> body.y, et -> body.r) && !s -> stuck)
+				if(enemycollide(s -> x2, s -> y2, 0, et -> body.x + et -> body.w/2, et -> body.y + et -> body.w/2, et -> body.w/2) && !s -> stuck)
 				{
 					s -> stickt = et;
 					et -> health -= s -> damage;
@@ -520,7 +520,7 @@ bool game()
 				}
 			}
 
-			if(enemycollide(et -> body.x, et -> body.y, et -> body.r, player.body.x, player.body.y, player.body.r))
+			if(enemycollide(et -> body.x , et -> body.y + et -> body.w/2, et -> body.w/2, player.body.x, player.body.y, player.body.r))
 			{
 				player.health--;
 				et -> die = 1;
@@ -528,6 +528,9 @@ bool game()
 
 			switch(et -> health)
 			{
+			case 5:
+				barva(255,255,255);
+				break;
 			case 4:
 				barva(255,150,150);
 				break;
@@ -540,16 +543,19 @@ bool game()
 			case 1:
 				barva(220,0,0);
 				break;
-			case 0:
-				et -> die = 1;
-				break;
 			}
+
+			if(et -> health <= 0)
+			{
+				et -> die = 1;
+			}
+
 
 			if(et -> die)
 			{
 				Animace* death = new Animace();
 				death -> nacti("death.png", 33, 33);
-				death -> umisti(et -> body.x - 17, et -> body.y - 17);
+				death -> umisti(et -> body.x + et -> body.w/2 - 17, et -> body.y + et -> body.w/2 - 17);
 				deaths.push_back(*death);
 
 				for(s = shots.begin(); s != shots.end(); s++)
@@ -570,7 +576,7 @@ bool game()
 
 				spawncount--;
 			}
-			kruznice(et -> body.x, et -> body.y, et -> body.r);
+			hrectangle(et -> body);
 		}
 
 		for(d = deaths.begin(); d != deaths.end(); d++)
@@ -588,6 +594,9 @@ bool game()
 
 		switch(player.health)
 		{
+		case 5:
+			barva(255,255,255);
+			break;
 		case 4:
 			barva(255,150,150);
 			break;
