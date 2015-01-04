@@ -12,8 +12,6 @@
 #define PURPUROVA 255, 0, 255
 #define ZLUTA 255, 255, 0
 
-float nahoda(float max);
-
 //
 // Zapouzdreni obrazovky
 //

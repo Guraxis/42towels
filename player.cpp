@@ -8,7 +8,7 @@ Player::Player()
 	moveleft = 0;
 	moveright = 0;
 	speed = 3;
-	health = 50;
+	health = 5;
 }
 
 void Player::drawplayer()

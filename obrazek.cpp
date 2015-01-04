@@ -6,11 +6,6 @@
 
 using namespace std;
 
-float nahoda(float max)
-{
-	return (float)rand() / RAND_MAX * max;
-}
-
 //
 // Zapouzreni obrazovky
 //

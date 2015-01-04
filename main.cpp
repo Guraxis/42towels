@@ -10,21 +10,31 @@
 #include "enemy.h"
 #include "player.h"
 #include "shot.h"
+#include "nahoda.h"
 
 #define RESX 800
 #define RESY 600
 
 Obrazovka* obrazovka = Obrazovka::instance();
 int t1, t2;
-Pismo numbers;
+Obrazek death_screen;
+Player player;
+float difficulty;
+int shoot;
+int rate;
 
-float nahoda(float min, float max)
+class Wave
 {
-	return (float)rand()/RAND_MAX*(max-min)+min;
-}
-
-
-
+public:
+	int basic;
+	int tank;
+	void generate(int waveseed, float difficulty)
+	{
+		srand(waveseed);
+		basic = nahoda(2+difficulty, 6+difficulty);
+		tank = nahoda(0+difficulty, 2+difficulty);
+	}
+};
 
 int wallcollide(int x, int y, int r, Rectangle roof, Rectangle ground, Rectangle left, Rectangle right)
 {
@@ -52,14 +62,13 @@ int enemycollide(int x, int y, int r, int ex, int ey, int er)
 
 bool dead(int x, int y)
 {
-	numbers.nacti("numbers.png", "0123456789");
+	death_screen.nacti("death_screen.png");
 	struct timeval tv;
 	while(1)
 	{
 		t1 = SDL_GetTicks();
 		SDL_FillRect(obrazovka->screen, NULL, 0);
-		numbers.umisti(RESX/3, RESY/3);
-		numbers.kresli("0123");
+		death_screen.kresli();
 		obrazovka->aktualizuj();
 		SDL_Event devent;
 		while(SDL_PollEvent(&devent))
@@ -84,24 +93,20 @@ bool dead(int x, int y)
 	}
 }
 
-bool game()
+int level()
 {
-	struct timeval tv;
-	gettimeofday(&tv, NULL);
-	srand(tv.tv_usec);
 	int spawnx, spawny;
-	int spawnlimit = 50;
-	int spawncount = 0;
+	int basicspawnedcount = 0;
+	int tankspawnedcount = 0;
+	int basicspawncount = 0;
+	int tankspawncount = 0;
 	int mousex, mousey;
-	int shoot = 0;
 	int delay = 20;
-	int basicspawndelay = 0;
-	int tankspawndelay = 0;
-	int basicspawnrate = 100;
-	int tankspawnrate = 500;
-	int rate = 25;
+	int wait = 60;
 	bool nolimit = 0;
-
+	int waveseed = nahoda(1,1000000);
+	Wave wave;
+	wave.generate(waveseed, difficulty);
 
 	Rectangle ground, roof, leftwall, rightwall;
 	ground.x = 0;
@@ -121,15 +126,6 @@ bool game()
 	rightwall.h = RESY;
 	rightwall.w = 20;
 
-	Player player;
-	player.body.r = 20;
-	player.body.x = RESX/2;
-	player.body.y = RESY/2;
-	player.hands.x1 = player.body.x;
-	player.hands.y1 = player.body.y;
-	player.hands.x2 = player.body.x+25;
-	player.hands.y2 = player.body.y;
-
 	std::list<EnemyBasic> enemiesbasic;
 	std::list<EnemyBasic>::iterator eb;
 	std::list<EnemyBasic>::iterator eb1;
@@ -143,7 +139,6 @@ bool game()
 
 	std::list<Animace> deaths;
 	std::list<Animace>::iterator d;
-
 
 	while(1)
 	{
@@ -219,7 +214,6 @@ bool game()
 				return 1;
 			}
 		}
-
 
 		player.angle = atan2(mousey - player.body.y , mousex - player.body.x);
 
@@ -304,7 +298,7 @@ bool game()
 			}
 		}
 
-		if(basicspawndelay > basicspawnrate && spawncount < spawnlimit)
+		while(basicspawnedcount < wave.basic)
 		{
 			while(1)
 			{
@@ -316,14 +310,14 @@ bool game()
 					eb -> body.x = spawnx;
 					eb -> body.y = spawny;
 					enemiesbasic.push_back(*eb);
-					basicspawndelay = 0;
-					spawncount ++;
+					basicspawnedcount++;
+					basicspawncount++;
 					break;
 				}
 			}
 		}
 
-		if(tankspawndelay > tankspawnrate && spawncount < spawnlimit)
+		while(tankspawnedcount < wave.tank)
 		{
 			while(1)
 			{
@@ -335,8 +329,8 @@ bool game()
 					et -> body.x = spawnx;
 					et -> body.y = spawny;
 					enemiestank.push_back(*et);
-					tankspawndelay = 0;
-					spawncount ++;
+					tankspawnedcount++;
+					tankspawncount++;
 					break;
 				}
 			}
@@ -451,12 +445,10 @@ bool game()
 				eb++;
 				enemiesbasic.erase(eb2);
 				eb--;
-
-				spawncount--;
+				basicspawncount--;
 			}
 			kruznice(eb -> body);
 		}
-
 
 		for(et = enemiestank.begin(); et != enemiestank.end(); et++)
 		{
@@ -554,7 +546,7 @@ bool game()
 			if(et -> die)
 			{
 				Animace* death = new Animace();
-				death -> nacti("death.png", 33, 33);
+				death -> nacti("deatht.png", 30, 30);
 				death -> umisti(et -> body.x + et -> body.w/2 - 17, et -> body.y + et -> body.w/2 - 17);
 				deaths.push_back(*death);
 
@@ -573,8 +565,7 @@ bool game()
 				et++;
 				enemiestank.erase(et2);
 				et--;
-
-				spawncount--;
+				tankspawncount--;
 			}
 			hrectangle(et -> body);
 		}
@@ -629,6 +620,15 @@ bool game()
 			return 0;
 		}
 
+		if(basicspawncount == 0 && tankspawncount == 0)
+		{
+			wait--;
+			if(wait==0)
+			{
+			return 2;
+			}
+		}
+
 		player.drawplayer();
 		barva(255,255,255);
 		rectangle(ground);
@@ -639,8 +639,6 @@ bool game()
 		obrazovka->aktualizuj();
 
 		delay++;
-		basicspawndelay++;
-		tankspawndelay++;
 
 		t2 = SDL_GetTicks();
 		if(t2-t1<=17 && nolimit == 0)
@@ -650,8 +648,47 @@ bool game()
 	}
 }
 
+bool game()
+{
+	difficulty = 0.5;
+	shoot = 0;
+	rate = 25;
+	player.speed = 3;
+	player.health = 5;
+	player.body.r = 20;
+	player.movedown = 0;
+	player.moveup = 0;
+	player.moveleft = 0;
+	player.moveright = 0;
+	while(1)
+	{
+
+		player.body.x = 50;
+		player.body.y = RESY/2;
+		player.hands.x1 = player.body.x;
+		player.hands.y1 = player.body.y;
+		player.hands.x2 = player.body.x+25;
+		player.hands.y2 = player.body.y;
+
+		switch(level())
+		{
+		case 0:
+			return 0;
+		case 1:
+			return 1;
+		case 2:
+			difficulty += 0.5;
+			rate --;
+		}
+	}
+}
+
 int main(int argc, char** argv)
 {
+	struct timeval tv;
+	gettimeofday(&tv, NULL);
+	srand(tv.tv_usec);
+	difficulty = 0.5;
 	obrazovka->inicializuj(RESX, RESY, 0, 0);
 	while(1)
 	{
