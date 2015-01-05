@@ -44,12 +44,19 @@ void kruznice(Kruznice a)
 	}
 }
 
-
 void rectangle(Rectangle a)
 {
 	for(int i=0; i<a.h; i++)
 	{
 		cara(a.x,a.y+i,a.x+a.w,a.y+i);
+	}
+}
+
+void rectangle(int x1, int y1, int x2, int y2)
+{
+	for(int i=0; i<y1-y2; i++)
+	{
+		cara(x1,y1+i,x2,y1+i);
 	}
 }
 

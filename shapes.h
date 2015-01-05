@@ -32,6 +32,7 @@ public:
 void kruznice(int x, int y, int r);
 void kruznice(Kruznice a);
 void rectangle(Rectangle a);
+void rectangle(int x1, int y1, int x2, int y2);
 void hrectangle(Rectangle a);
 void triangle(int x, int y, int w, int h);
 void triangle(int x1, int y1, int x2, int y2, int x3, int y3);

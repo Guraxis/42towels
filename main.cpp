@@ -102,7 +102,6 @@ int level()
 	int tankspawncount = 0;
 	int mousex, mousey;
 	int delay = 20;
-	int wait = 60;
 	bool nolimit = 0;
 	int waveseed = nahoda(1,1000000);
 	Wave wave;
@@ -125,6 +124,12 @@ int level()
 	rightwall.y = 0;
 	rightwall.h = RESY;
 	rightwall.w = 20;
+
+	Rectangle door;
+	door.x = RESX-20;
+	door.y = RESY/2-40;
+	door.w = 20;
+	door.h = 80;
 
 	std::list<EnemyBasic> enemiesbasic;
 	std::list<EnemyBasic>::iterator eb;
@@ -287,6 +292,7 @@ int level()
 				s -> y2 += s -> vy2;
 			}
 
+			barva(255,255,255);
 			cara(s -> x1, s -> y1, s -> x2, s -> y2);
 
 			if(wallcollide(s -> x2, s -> y2, 0, roof, ground, leftwall, rightwall))
@@ -619,22 +625,22 @@ int level()
 			}
 			return 0;
 		}
-
-		if(basicspawncount == 0 && tankspawncount == 0)
-		{
-			wait--;
-			if(wait==0)
-			{
-			return 2;
-			}
-		}
-
 		player.drawplayer();
 		barva(255,255,255);
 		rectangle(ground);
 		rectangle(roof);
 		rectangle(leftwall);
 		rectangle(rightwall);
+
+		if(basicspawncount == 0 && tankspawncount == 0)
+		{
+			barva(0,0,0);
+			rectangle(door);
+			if(player.body.x+player.body.r > RESX-25 && player.body.y-player.body.r >= RESY/2-40 && player.body.y+player.body.r <= RESY/2+40)
+			{
+			return 2;
+			}
+		}
 
 		obrazovka->aktualizuj();
 
